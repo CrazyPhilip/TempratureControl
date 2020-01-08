@@ -2,17 +2,21 @@
 # Python 3.5.1, TensorFlow 1.6.0, Keras 2.1.5
 # ========================================================
 # 导入模块
-import os
 import csv
 import math
-import numpy as np
+import os
+
 import keras as K
-import tensorflow as tf
+import numpy as np
 import pandas as pd
+import tensorflow as tf
 from keras.engine.saving import load_model
-from sklearn.model_selection import train_test_split, RepeatedKFold, KFold
+from sklearn.model_selection import KFold
 from sklearn.preprocessing import LabelBinarizer
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+from keras.callbacks import Callback
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 # 读取CSV数据集，并拆分为训练集和测试集
@@ -44,8 +48,32 @@ def load_data(CSV_FILE_PATH):
     return X, features, y_bin_labels, Class_dict
 
 
-def main(CSV_FILE_PATH, r, s):
+# 定义混淆矩阵，左边是预测值，上面是实际值 从左到右，从上到下 依次为a,b,c,d表示
+def confusion_mat(test_label, predicts):
+    test_calss = [int(x) for x in (list(test_label))]  # 传入的是数组，转成数字列表
+    pred_class = [int(x) for x in (list(predicts))]
+    a, b, c, d = 0, 0, 0, 0
+    for i in range(len(test_calss)):
+        if pred_class[i] == 1 and test_calss[i] == 1:
+            a += 1
+        elif pred_class[i] == 1 and test_calss[i] == 0:
+            b += 1
+        elif pred_class[i] == 0 and test_calss[i] == 1:
+            c += 1
+        # elif pred_class[i] == 0 and test_calss[i] == 0:
+        #     d += 1
+    precision_1 = a / (a + b + 0.1)
+    # precision_0 = d / (c + d + 0.0)
+    recall_1 = a / (a + c + 0.1)
+    # recall_0 = d / (d + b + 0.0)
+    # precision = (a + d) / (a + b + c + d + 0.0)
+    f1 = 2 * precision_1 * recall_1 / (precision_1 + recall_1)
+    # f0 = 2 * precision_0 * recall_0 / (precision_0 + recall_0)
+    # return [[a, b], [c, d], [precision_1, precision_0, recall_1, recall_0, precision, f1, f0]]
+    return f1
 
+
+def main(CSV_FILE_PATH, r, s):
     # 0. 开始
     print("\n" + CSV_FILE_PATH + " dataset using Keras/TensorFlow ")
     np.random.seed(4)
@@ -72,7 +100,7 @@ def main(CSV_FILE_PATH, r, s):
     X = X[features].values
     round = 1
 
-    loss_array = []
+    f1_array = []
     acc_array = []
     result_file = open('./room_%d_result.csv' % r, mode='a+', encoding='utf8', newline='')
     csv_writer = csv.writer(result_file)
@@ -88,20 +116,23 @@ def main(CSV_FILE_PATH, r, s):
         h = model.fit(train_x, train_y, batch_size=b_size, epochs=max_epochs, shuffle=True, verbose=0)
         print("Training  %d finished \n" % round)
 
-        model.save('./models/room_%d/subfile_%d_%d.m' % (r, s, round))
+        model.save('./models/room_%d/subfile_%d_%d_14.m' % (r, s, round))
 
-        # 4. 评估模型
+        # 4. 评估模型，测试
         eval = model.evaluate(test_x, test_y, verbose=0)
-        print("Evaluation on test data: loss = %0.6f accuracy = %0.2f%% \n" % (eval[0], eval[1] * 100) )
-        loss_array.append(eval[0])
+        print("Evaluation on test data: loss = %0.6f accuracy = %0.2f%% \n" % (eval[0], eval[1] * 100))
+        p_label = model.predict_classes(test_x)
+        f1 = confusion_mat(test_y, p_label)
+
+        f1_array.append(f1)
         acc_array.append(eval[1])
         round += 1
 
-    if s == 1:
-        headers = ['room', 'subfile', 'loss', 'acc']
+    if s == 24:
+        headers = ['room', 'subfile', 'f1', 'acc']
         csv_writer.writerow(headers)
 
-    csv_writer.writerow([r, s, math.fsum(loss_array)/10, math.fsum(acc_array)/10])
+    csv_writer.writerow([r, s, math.fsum(f1_array) / 10, math.fsum(acc_array) / 10])
 
     result_file.close()
 
@@ -113,13 +144,13 @@ def test():
 
     model = load_model('model.m')
     np.set_printoptions(precision=4)
-    unknown = np.array([[5,7,95.00,1,15.00,1,200.00,29.2,72.0,0.0,127.0,3.0,24.97789967]], dtype=np.float32)
+    unknown = np.array([[5, 7, 95.00, 1, 15.00, 1, 200.00, 29.2, 72.0, 0.0, 127.0, 3.0, 24.97789967]], dtype=np.float32)
     predicted = model.predict(unknown)
     print("Using model to predict species for features: ")
     print(unknown)
     print("\nPredicted softmax vector is: ")
     print(predicted)
-    species_dict = {v:k for k,v in Class_dict.items()}
+    species_dict = {v: k for k, v in Class_dict.items()}
     print("\nPredicted species is: ")
     print(species_dict[np.argmax(predicted)])
 
@@ -127,6 +158,8 @@ def test():
 if __name__ == '__main__':
 
     for r in [1, 2]:
-        for s in range(1, 101):
+        # for s in range(1, 101):
+        # for s in [24, 91, 59, 84, 4, 1, 31, 67, 45, 17, 10, 88, 74, 35, 19]:
+        for s in [19]:
             main('./room_' + str(r) + '/subfile_' + str(s) + '.csv', r, s)
     # test()

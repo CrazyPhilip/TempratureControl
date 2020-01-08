@@ -11,7 +11,7 @@ def train(i):
     y, x = svm_read_problem(csv_file_path)  # y是标签
 
     kf = KFold(n_splits=10, shuffle=True)
-    loss_array = []
+    f1_array = []
     acc_array = []
     round = 1
     for train_index, test_index in kf.split(y):
@@ -22,18 +22,35 @@ def train(i):
         svm_save_model('./models/subfile_%d.model' % i, model)
 
         p_label, p_acc, p_val = svm_predict(y_test, x_test, model)  # 预测
-        loss_array.append(p_acc[1])
         acc_array.append(p_acc[0])
+
+        # 接下来计算F1
+        tp = 0  # 正类被预测为正类的数
+        fp = 0  # 负类被预测为正类的数
+        fn = 0  # 正类被预测为负类的数
+        for (y_te, label) in zip(y_test, p_label):
+            if y_te == 1.0 and label == 1.0:
+                tp += 1.0
+            if y_te == 0 and label == 1.0:
+                fp += 1.0
+            if y_te == 1.0 and label == 0:
+                fn += 1.0
+
+        p = tp / (tp + fp + 1)
+        r = tp / (tp + fn + 1)
+        f = (2 * p * r) / (p + r + 1)
+        f1_array.append(f)
+
         round += 1
 
     with open('./room_1_result.csv', mode='a+', encoding='utf8', newline='') as f_save_result:
         csv_writer = csv.writer(f_save_result)
 
-        if i == 1:
-            headers = ['room', 'subfile', 'loss', 'acc']
+        if i == 100:
+            headers = ['room', 'subfile', 'f1', 'acc']
             csv_writer.writerow(headers)
 
-        csv_writer.writerow([1, i, math.fsum(loss_array)/10, math.fsum(acc_array)/10])
+        csv_writer.writerow([1, i, math.fsum(f1_array)/10, math.fsum(acc_array)/10])
 
 
 def test(x):

@@ -41,7 +41,7 @@ def train(s):
     X = X[features].values
     round = 1
 
-    loss_array = []
+    f1_array = []
     acc_array = []
     result_file = open('./room_1_result.csv', mode='a+', encoding='utf8', newline='')
     csv_writer = csv.writer(result_file)
@@ -57,12 +57,26 @@ def train(s):
         y_predict = knn.predict(test_x)
 
         # print('-----predict value is ------')
-
         # print(y_predict)
-
         # print('-----actual value is -------')
-
         # print(test_y)
+
+        # 接下来计算F1
+        tp = 0  # 正类被预测为正类的数
+        fp = 0  # 负类被预测为正类的数
+        fn = 0  # 正类被预测为负类的数
+        for (y_te, label) in zip(test_y, y_predict):
+            if y_te == 1.0 and label == 1.0:
+                tp += 1.0
+            if y_te == 0 and label == 1.0:
+                fp += 1.0
+            if y_te == 1.0 and label == 0:
+                fn += 1.0
+
+        p = tp / (tp + fp + 1)
+        r = tp / (tp + fn + 1)
+        f = (2 * p * r) / (p + r + 1)
+        f1_array.append(f)
 
         count = 0
 
@@ -75,13 +89,14 @@ def train(s):
         round += 1
 
     if s == 1:
-        headers = ['room', 'subfile', 'acc']
+        headers = ['room', 'subfile', 'f1', 'acc']
         csv_writer.writerow(headers)
 
-    csv_writer.writerow([1, s, math.fsum(acc_array)/10])
+    csv_writer.writerow([1, s, math.fsum(f1_array)/10, math.fsum(acc_array)/10])
     result_file.close()
 
 
 if __name__ == '__main__':
     for s in range(1, 101):
+    # for s in [100, 24, 91, 59, 84, 4, 31, 1, 67, 45, 17, 10, 35, 74]:
         train(s)
