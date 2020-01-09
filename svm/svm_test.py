@@ -7,7 +7,7 @@ from svmutil import *
 
 # 第二步，训练和测试
 def train(i):
-    csv_file_path = './room_1/subfile_%d_train.csv' % i
+    csv_file_path = './room_1/subfile_%d.csv' % i
     y, x = svm_read_problem(csv_file_path)  # y是标签
 
     kf = KFold(n_splits=10, shuffle=True)
@@ -46,7 +46,7 @@ def train(i):
     with open('./room_1_result.csv', mode='a+', encoding='utf8', newline='') as f_save_result:
         csv_writer = csv.writer(f_save_result)
 
-        if i == 100:
+        if i == 86:
             headers = ['room', 'subfile', 'f1', 'acc']
             csv_writer.writerow(headers)
 
@@ -69,6 +69,7 @@ def test(x):
 
 if __name__ == '__main__':
 
-    for i in range(1, 101):
+    # for i in range(1, 101):
+    for i in [86, 77, 40, 70, 46, 22, 58, 89, 96, 93, 62, 69, 61, 87, 2, 72, 26, 16, 85, 63]:
         train(i)
         # test(str(x))

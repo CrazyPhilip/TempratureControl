@@ -88,7 +88,7 @@ def train(s):
         # print('accuracy is %0.2f%%' % (100 * count / len(y_predict)))
         round += 1
 
-    if s == 1:
+    if s == 86:
         headers = ['room', 'subfile', 'f1', 'acc']
         csv_writer.writerow(headers)
 
@@ -97,6 +97,6 @@ def train(s):
 
 
 if __name__ == '__main__':
-    for s in range(1, 101):
-    # for s in [100, 24, 91, 59, 84, 4, 31, 1, 67, 45, 17, 10, 35, 74]:
+    # for s in range(1, 101):
+    for s in [86, 77, 40, 70, 46, 22, 58, 89, 96, 93, 62, 69, 61, 87, 2, 72, 26, 16, 85, 63]:
         train(s)
