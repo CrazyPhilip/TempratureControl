@@ -48,26 +48,26 @@ def load_data(CSV_FILE_PATH):
     return X, features, y_bin_labels, Class_dict
 
 
-# 定义混淆矩阵，左边是预测值，上面是实际值 从左到右，从上到下 依次为a,b,c,d表示
 def confusion_mat(test_label, predicts):
-    test_calss = [int(x) for x in (list(test_label))]  # 传入的是数组，转成数字列表
-    pred_class = [int(x) for x in (list(predicts))]
-    a, b, c, d = 0, 0, 0, 0
+    test_calss = [int(x) for x in (list(test_label))]  # 原始结果
+    pred_class = [int(x) for x in (list(predicts))]    # 预测的结果
+    # pred_class = [np.round(x) for x in (list(predicts))]  # 预测的结果
+    tp, fp, fn, tn = 0, 0, 0, 0
     for i in range(len(test_calss)):
         if pred_class[i] == 1 and test_calss[i] == 1:
-            a += 1
+            tp += 1
         elif pred_class[i] == 1 and test_calss[i] == 0:
-            b += 1
+            fp += 1
         elif pred_class[i] == 0 and test_calss[i] == 1:
-            c += 1
+            fn += 1
         # elif pred_class[i] == 0 and test_calss[i] == 0:
         #     d += 1
-    precision_1 = a / (a + b + 0.1)
+    precision_1 = tp / (tp + fp + 0.1)
     # precision_0 = d / (c + d + 0.0)
-    recall_1 = a / (a + c + 0.1)
+    recall_1 = tp / (tp + fn + 0.1)
     # recall_0 = d / (d + b + 0.0)
     # precision = (a + d) / (a + b + c + d + 0.0)
-    f1 = 2 * precision_1 * recall_1 / (precision_1 + recall_1)
+    f1 = 2 * precision_1 * recall_1 / (precision_1 + recall_1 + 0.1)
     # f0 = 2 * precision_0 * recall_0 / (precision_0 + recall_0)
     # return [[a, b], [c, d], [precision_1, precision_0, recall_1, recall_0, precision, f1, f0]]
     return f1
@@ -82,14 +82,22 @@ def main(CSV_FILE_PATH, r, s):
     # CSV_FILE_PATH = './room_1/subfile_1.csv'
 
     # 2. 定义模型
-    init = K.initializers.glorot_uniform(seed=1)
-    simple_adam = K.optimizers.Adam()
+    # init = K.initializers.glorot_uniform(seed=1)
+    # simple_adam = K.optimizers.Adam()
+    # model = K.models.Sequential()
+    # model.add(K.layers.Dense(units=5, input_dim=6, kernel_initializer=init, activation='relu'))
+    # model.add(K.layers.Dense(units=6, kernel_initializer=init, activation='relu'))
+    # model.add(K.layers.Dense(units=1, kernel_initializer=init, activation='softmax'))
+    # # model.compile(loss='categorical_crossentropy', optimizer=simple_adam, metrics=['accuracy'])
+    # model.compile(loss='mse', optimizer=simple_adam, metrics=['accuracy'])
+
     model = K.models.Sequential()
-    model.add(K.layers.Dense(units=5, input_dim=13, kernel_initializer=init, activation='relu'))
-    model.add(K.layers.Dense(units=6, kernel_initializer=init, activation='relu'))
-    model.add(K.layers.Dense(units=1, kernel_initializer=init, activation='softmax'))
-    # model.compile(loss='categorical_crossentropy', optimizer=simple_adam, metrics=['accuracy'])
-    model.compile(loss='mse', optimizer=simple_adam, metrics=['accuracy'])
+    model.add(K.layers.Dense(units=5, activation='relu', input_dim=6))
+    model.add(K.layers.Dense(units=6, activation='relu'))
+    model.add(K.layers.Dense(units=1, activation='sigmoid'))
+    model.compile(optimizer='rmsprop',  # 还可以通过optimizer = optimizers.RMSprop(lr=0.001)来为优化器指定参数
+                  loss='binary_crossentropy',  # 等价于loss = losses.binary_crossentropy
+                  metrics=['accuracy'])  # 等价于metrics = [metircs.binary_accuracy]
 
     # 1. 读取CSV数据集
     print("Loading data into memory")
@@ -101,8 +109,9 @@ def main(CSV_FILE_PATH, r, s):
     round = 1
 
     f1_array = []
+    loss_array = []
     acc_array = []
-    result_file = open('./room_%d_result.csv' % r, mode='a+', encoding='utf8', newline='')
+    result_file = open('./room_%d_less_20_result.csv' % r, mode='a+', encoding='utf8', newline='')
     csv_writer = csv.writer(result_file)
 
     for train_index, test_index in kf.split(X):
@@ -116,23 +125,25 @@ def main(CSV_FILE_PATH, r, s):
         h = model.fit(train_x, train_y, batch_size=b_size, epochs=max_epochs, shuffle=True, verbose=0)
         print("Training  %d finished \n" % round)
 
-        model.save('./models/room_%d/subfile_%d_%d_14.m' % (r, s, round))
+        # model.save('./models/room_%d_less_new_new/subfile_%d_%d.m' % (r, s, round))
 
         # 4. 评估模型，测试
         eval = model.evaluate(test_x, test_y, verbose=0)
         print("Evaluation on test data: loss = %0.6f accuracy = %0.2f%% \n" % (eval[0], eval[1] * 100))
+        # p_label = model.predict(test_x)
         p_label = model.predict_classes(test_x)
         f1 = confusion_mat(test_y, p_label)
 
         f1_array.append(f1)
+        loss_array.append(eval[0])
         acc_array.append(eval[1])
         round += 1
 
-    if s == 24:
-        headers = ['room', 'subfile', 'f1', 'acc']
+    if s == 86:
+        headers = ['room', 'subfile', 'f1', 'binary_crossentropy', 'acc']
         csv_writer.writerow(headers)
 
-    csv_writer.writerow([r, s, math.fsum(f1_array) / 10, math.fsum(acc_array) / 10])
+    csv_writer.writerow([r, s, math.fsum(f1_array) / 10, math.fsum(loss_array) / 10, math.fsum(acc_array) / 10])
 
     result_file.close()
 
@@ -159,7 +170,8 @@ if __name__ == '__main__':
 
     for r in [1]:
         # for s in range(1, 101):
-        # for s in [86, 77, 40, 70, 46, 22, 58, 89, 96, 93, 62, 69, 61, 87, 2, 72, 26, 16, 85, 63]:
-        for s in [69, 61, 87, 2, 72, 26, 16, 85, 63]:
-            main('./room_' + str(r) + '/subfile_' + str(s) + '.csv', r, s)
+        for s in [86, 77, 40, 70, 46, 22, 58, 89, 96, 93, 62, 69, 61, 87, 2, 72, 26, 16, 85, 63]:
+        # for s in [86, 77, 39, 51, 82, 71, 55, 42, 79, 54, 31, 1]:
+        # for s in [54, 31, 1]:
+            main('./room_' + str(r) + '_less/subfile_' + str(s) + '.csv', r, s)
     # test()
